@@ -806,7 +806,9 @@ The CPAN distribution is maintained by Michael Aquilina (aquilina@cpan.org).
 
 =head1 THANK YOU
 
-Thanks to Sterling Hanenkamp for adding support for explicit date ranges, improved parsing, and improving the documentation.
+Sterling Hanenkamp, for adding support for explicit date ranges, improved parsing, and improving the documentation.
+
+Sam Varshavchik, for for fixing a bug affecting the "[ordinal] of [last/next] month" syntax.
 
 =head1 COPYRIGHT AND LICENSE
 
