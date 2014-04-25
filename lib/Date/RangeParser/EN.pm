@@ -6,7 +6,7 @@ use warnings;
 use Date::Manip;
 use DateTime;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -103,6 +103,13 @@ At the very least, this given class must implement a C<new> method that accepts 
   second
 
 This gives you the freedom to set your time zones and such however you need to.
+
+=item * B<infinite_past_class>
+=item * B<infinite_future_class>
+
+By default, Date::RangeParser::EN uses DateTime::Infinite::Past and DateTime::Infinite::Future to create open-ended ranges (for example "after today"). If you have extended these classes, you may pass the corresponding names in.
+
+The given classes must implement a C<new> method that accepts no arguments.
 
 =item * B<now_callback>
 
@@ -266,6 +273,20 @@ More formally, this will parse the following kinds of date strings:
 
   RANGE-RANGE                       : the very start of the first range to the very end of the second
   10/10-10/20                         (ranges must not contain hyphens, "-")
+
+  before ELEMENT                    : all dates before the very start of the date specified in the ELEMENT
+       < ELEMENT
+  before today
+
+  <= ELEMENT                        : all dates up to the very end of the date specified in the ELEMENT
+  <= today
+
+  after ELEMENT                     : all dates after the very end of the date specified in the ELEMENT
+      > ELEMENT
+  after next Tuesday
+
+  >= ELEMENT                        : the date specified in the ELEMENT to the end of forever
+  >= this Friday
 
   since ELEMENT                     : the date specified in the ELEMENT to the end of the current day
   since last Sunday
@@ -647,6 +668,36 @@ sub parse_range
         (undef, $end) = $self->parse_range($second);
     }
 
+    elsif ($string =~ /^(?:before|<) /i) {
+        $string =~ s/^(?:before|<) //i;
+        ($end) = $self->parse_range($string);
+
+        if ( defined $end ) {
+            $beg = $self->_infinite_past_class->new();
+            $end = $end->subtract(seconds => 1);
+        }
+    }
+    elsif ($string =~ /^<= /) {
+        $string =~ s/^<= //;
+        $beg   = $self->_infinite_past_class->new();
+        ($end) = $self->parse_range($string);
+    }
+
+    elsif ($string =~ /^(?:after|>) /i) {
+        $string =~ s/^(?:after|>) //i;
+        (undef, $beg) = $self->parse_range($string);
+
+        if ( defined $beg ) {
+            $beg = $beg->add(seconds => 1);
+            $end = $self->_infinite_future_class->new();
+        }
+    }
+    elsif ($string =~ /^>= /) {
+        $string =~ s/^>= //;
+        ($beg) = $self->parse_range($string);
+        $end   = $self->_infinite_future_class->new();
+    }
+
     elsif ($string =~ /^since /i) {
         $string =~ s/^since //i;
         ($beg) = $self->parse_range($string);
@@ -654,8 +705,6 @@ sub parse_range
         # thus $end is the end of the day today and not infinity.
         $end = $self->_now()->clone->set(hour => 23, minute => 59, second => 59);
     }
-
-    # TODO: Support "after [date]". This requires handling of infinite dates.
 
     # See if this is a range between two other dates separated by -
     elsif ($string !~ /^\d+-\d+$/ and $string =~ /^[^-]+-[^-]+$/) 
@@ -705,6 +754,16 @@ sub _now {
 sub _datetime_class {
     my $self = shift;
     return $self->{datetime_class} || 'DateTime';
+}
+
+sub _infinite_future_class {
+    my $self = shift;
+    return $self->{infinite_future_class} || 'DateTime::Infinite::Future';
+}
+
+sub _infinite_past_class {
+    my $self = shift;
+    return $self->{infinite_past_class} || 'DateTime::Infinite::Past';
 }
 
 sub _parse_date_manip
@@ -812,7 +871,7 @@ Sam Varshavchik, for for fixing a bug affecting the "[ordinal] of [last/next] mo
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012 Grant Street Group.
+Copyright (C) 2012-2014 Grant Street Group.
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 

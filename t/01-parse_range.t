@@ -390,6 +390,67 @@ my @tests = (
         as_of             => '2012-11-12',
         beg               => '12/31/2012 12:00AM',
         end               => '12/31/2012 11:59PM',
+    }, {
+        date_range_string => 'before 4/18/2014',
+        as_of             => '2014-04-18',
+        beg               => '-inf',
+        end               => '04/17/2014 11:59PM',
+    }, {
+        date_range_string => '< 4/18/2014',
+        as_of             => '2010-01-28',
+        beg               => '-inf',
+        end               => '04/17/2014 11:59PM',
+    }, {
+        date_range_string => '<= 12/25/2013',
+        as_of             => '2014-04-18',
+        beg               => '-inf',
+        end               => '12/25/2013 12:00AM',
+    }, {
+        date_range_string => 'after 2/5/1990',
+        as_of             => '2014-04-18',
+        beg               => '02/06/1990 12:00AM',
+        end               => 'inf',
+    }, {
+        date_range_string => '> 2/5/1990',
+        as_of             => '2010-01-28',
+        beg               => '02/06/1990 12:00AM',
+        end               => 'inf',
+    }, {
+        date_range_string => '>= 07/04/2776',
+        as_of             => '1776-07-04',
+        beg               => '07/04/2776 12:00AM',
+        end               => 'inf',
+    }, {
+        # "after X" means "after the end of X"
+        # "after today" extends into infinity (it doesn't end)
+        # thus "after after today" means "after the end of infinity"
+        # and begins in infinity :)
+        date_range_string => 'after after today',
+        as_of             => '2000-01-01',
+        beg               => 'inf',
+        end               => 'inf',
+    }, {
+        date_range_string => 'before before today',
+        as_of             => '2000-01-01',
+        beg               => '-inf',
+        end               => '-inf',
+    }, {
+        date_range_string => 'before after today',
+        as_of             => '2000-01-01',
+        beg               => '-inf',
+        end               => '01/01/2000 11:59PM',
+    }, {
+        # "since" truncates ->{end} to the end of the as_of date
+        date_range_string => 'since before 01/01/3000',
+        as_of             => '2000-01-01',
+        beg               => '-inf',
+        end               => '01/01/2000 11:59PM',
+    }, {
+        # this isn't really a range, but that's expected
+        date_range_string => 'after after today - before before today',
+        as_of             => '2000-01-01',
+        beg               => 'inf',
+        end               => '-inf',
     }
 );
 
@@ -414,8 +475,19 @@ for my $test (@tests)
         ok(defined $beg, "Beginning date for $test->{date_range_string} is defined");
         ok(defined $end, "End date for $test->{date_range_string} is defined");
 
-        cmp_ok($beg->strftime("%m/%d/%Y %I:%M%p"), 'eq', $test->{beg}, "Beginning date ok for $test->{date_range_string}");
-        cmp_ok($end->strftime("%m/%d/%Y %I:%M%p"), 'eq', $test->{end}, "Ending date ok for $test->{date_range_string}");
+        # strftime makes no sense on infinite times
+        if ( $beg->is_infinite ) {
+            cmp_ok( "$beg", 'eq', $test->{beg}, "Beginning date ok for $test->{date_range_string}");
+        }
+        else {
+            cmp_ok($beg->strftime("%m/%d/%Y %I:%M%p"), 'eq', $test->{beg}, "Beginning date ok for $test->{date_range_string}");
+        }
+        if ( $end->is_infinite ) {
+            cmp_ok( "$end", 'eq', $test->{end}, "Beginning date ok for $test->{date_range_string}");
+        }
+        else {
+            cmp_ok($end->strftime("%m/%d/%Y %I:%M%p"), 'eq', $test->{end}, "Ending date ok for $test->{date_range_string}");
+        }
     };
 }
 
